@@ -1,0 +1,33 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+.env/
+.venv/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# VSCode and PyCharm files
+.vscode/
+.idea/
+
+# Logs, checkpoints, and results
+logs/
+results/
+saved_models/
+plots/
+
+# Datasets (optional, to avoid committing large files)
+data/
+
+# PyTorch Lightning artifacts
+lightning_logs/
+*.ckpt
+
+# OS-specific files
+.DS_Store
+Thumbs.db

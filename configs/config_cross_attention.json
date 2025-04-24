@@ -1,0 +1,15 @@
+{
+  "hidden_size": 768,
+  "blocks_num": 5,
+  "num_heads": 8,
+  "num_epochs": 100,
+  "batch_size": 150,
+  "gpu_device": 2,
+  "lr": 1e-4,
+  "betas": [0.9, 0.98],
+  "dropout_rate": 0.3,
+  "weight_decay": 0.05,
+  "eps": 1e-8,
+  "sequence_size": 14,
+  "unfreeze_layers": 4
+}
