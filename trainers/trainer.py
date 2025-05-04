@@ -14,14 +14,32 @@ import argparse
 import pandas as pd
 from sklearn.metrics import roc_auc_score
 import numpy as np
+import random
+
+
+def set_seed(seed):
+    """Set seed for reproducibility"""
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
 
 
 def train(model_name: str, use_clip_for_text: bool, gpu_device: int = 2,
           results_dir: str = "../results", models_dir: str = "../saved_models",
-          config_dir: str = "../configs", data_dir: str = "../data/vqa"):
-
+          config_dir: str = "../configs", data_dir: str = "../data/vqa",
+          seed: int = 42, run_id: int = 0, save_learning_curves: bool = False):
+    print(f"Starting run {run_id} with seed {seed}")
     print(f"use_clip_for_text: {use_clip_for_text}")
     print(f"gpu_device: {gpu_device}")
+
+    # Set the seed for reproducibility
+    set_seed(seed)
+
     """
     Train a model (QFormer, CrossAttention, or Concat) on the VQA dataset.
     """
@@ -43,8 +61,13 @@ def train(model_name: str, use_clip_for_text: bool, gpu_device: int = 2,
 
     # Create results file paths
     encoder_type = "clip" if use_clip_for_text else "bert"
-    metrics_file = results_dir / f"{model_name}_{encoder_type}_metrics.csv"
-    test_results_file = results_dir / f"{model_name}_{encoder_type}_test_results.csv"
+    metrics_file = results_dir / f"{model_name}_{encoder_type}_metrics_run{run_id}.csv" if save_learning_curves else None
+
+    # Create or update summary results file for all runs
+    summary_results_file = results_dir / f"{model_name}_{encoder_type}_summary_results.csv"
+
+    # Keep track of best checkpoint path for this run
+    best_checkpoint_path = results_dir / f"{model_name}_{encoder_type}_best_run{run_id}.ckpt"
 
     # Set paths for the dataset
     train_file = os.path.join(data_dir, "vaq2.0.TrainImages.txt")
@@ -86,6 +109,10 @@ def train(model_name: str, use_clip_for_text: bool, gpu_device: int = 2,
             self.metrics_file = metrics_file
             self.model_name = model_name
 
+            # Skip if not saving learning curves
+            if self.metrics_file is None:
+                return
+
             # Create headers based on model type
             if model_name.lower() == "qformer":
                 headers = ['epoch', 'train_loss', 'train_accuracy', 'train_loss_itc',
@@ -102,6 +129,10 @@ def train(model_name: str, use_clip_for_text: bool, gpu_device: int = 2,
                 writer.writerow(headers)
 
         def on_train_epoch_end(self, trainer, pl_module):
+            # Skip if not saving learning curves
+            if self.metrics_file is None:
+                return
+
             # Get current metrics
             epoch = trainer.current_epoch
 
@@ -174,10 +205,20 @@ def train(model_name: str, use_clip_for_text: bool, gpu_device: int = 2,
             except Exception as e:
                 print(f"Error saving metrics: {str(e)}")
 
+    # Setup model checkpoint callback to save best model based on validation accuracy
+    checkpoint_callback = ModelCheckpoint(
+        dirpath=str(results_dir),
+        filename=f"{model_name}_{encoder_type}_run{run_id}_best",
+        monitor="val_answer_accuracy",
+        mode="max",
+        save_top_k=1,
+        verbose=True
+    )
+
     # Setup callbacks
     early_stopping = EarlyStopping(
         monitor="val_answer_accuracy",
-        patience=hyperparams.get('patience', 5),
+        patience=hyperparams.get('patience', 10),
         mode="max",
         verbose=True
     )
@@ -187,17 +228,17 @@ def train(model_name: str, use_clip_for_text: bool, gpu_device: int = 2,
     # Setup logger
     logger = TensorBoardLogger(
         save_dir="logs",
-        name=model_name.lower(),
+        name=f"{model_name.lower()}_{encoder_type}_run{run_id}",
         default_hp_metric=False
     )
 
     # Initialize trainer
     trainer = pl.Trainer(
-        max_epochs=hyperparams.get('num_epochs', 30),
+        max_epochs=hyperparams.get('num_epochs', 100),
         accelerator='gpu' if torch.cuda.is_available() else 'cpu',
         devices=[gpu_device] if gpu_device is not None else None,
         logger=logger,
-        callbacks=[early_stopping, metrics_callback],
+        callbacks=[early_stopping, metrics_callback, checkpoint_callback],
         log_every_n_steps=10,
         enable_progress_bar=True,
         enable_model_summary=True,
@@ -207,64 +248,131 @@ def train(model_name: str, use_clip_for_text: bool, gpu_device: int = 2,
     # Train the model
     trainer.fit(model, train_dataloaders=train_dataloader, val_dataloaders=val_dataloader)
 
-    # Test the model
-    test_results = trainer.test(model, dataloaders=test_dataloader)
+    # Load the best model weights for testing
+    if os.path.exists(checkpoint_callback.best_model_path):
+        print(f"Loading best model from {checkpoint_callback.best_model_path}")
+        best_model = type(model).load_from_checkpoint(
+            checkpoint_callback.best_model_path,
+            hyperparams=hyperparams,
+            device=device
+        )
+        best_model.to(device)
+        test_results = trainer.test(best_model, dataloaders=test_dataloader)
+    else:
+        print("Warning: Best model checkpoint not found, using current model state")
+        test_results = trainer.test(model, dataloaders=test_dataloader)
 
     # Collect predictions and labels for AUC calculation
+    all_preds = []
+    all_labels = []
+
     try:
-        model.to(device)
-        model.eval()
-        all_preds = []
-        all_labels = []
+        # Use the best model for evaluation if available
+        eval_model = best_model if 'best_model' in locals() else model
+        eval_model.to(device)
+        eval_model.eval()
 
         with torch.no_grad():
             for batch in test_dataloader:
-                output = model(batch)
-                if 'answer_logits' in output:
-                    preds = torch.sigmoid(output['answer_logits']).cpu().numpy()
-                    labels = batch['answer_labels'].float().cpu().numpy()
+                # Move tensors to the same device as model
+                for key, value in batch.items():
+                    if isinstance(value, torch.Tensor):
+                        batch[key] = value.to(device)
 
-                    all_preds.extend(preds)
-                    all_labels.extend(labels)
+                # Get model output
+                output = eval_model(batch)
 
-        # Calculate AUC
+                # Check if we have answer logits and labels to compute AUC
+                if 'answer_predictions' in output and 'answer_labels' in output:
+                    preds = output['answer_predictions']
+                    labels = output['answer_labels'].float()
+
+                    preds = preds.cpu().numpy()
+                    labels = labels.cpu().numpy().flatten()
+
+                    all_preds.append(preds)
+                    all_labels.append(labels)
+
+        # Concatenate all predictions and labels
         if all_preds and all_labels:
-            try:
-                auc = roc_auc_score(all_labels, all_preds)
-            except ValueError:
-                print("Could not calculate AUC score - check class distribution")
+            all_preds = np.concatenate(all_preds)
+            all_labels = np.concatenate(all_labels)
+
+            # Calculate AUC for binary classification
+            if len(all_preds) > 0 and len(np.unique(all_labels)) > 1:
+                try:
+                    # Binary case
+                    auc = roc_auc_score(all_labels, all_preds)
+                    print(f"Test AUC: {auc:.4f}")
+                except ValueError as e:
+                    print(f"Could not calculate AUC: {str(e)}")
+                    auc = None
+            else:
+                print("Could not calculate AUC - insufficient class distribution")
                 auc = None
         else:
+            print("No predictions or labels available for AUC calculation")
             auc = None
+
     except Exception as e:
-        print(f"AUC calculation failed: {str(e)}")
+        print(f"Error during prediction or AUC calculation: {str(e)}")
         auc = None
 
-    # Save test results
-    with open(test_results_file, 'w', newline='') as f:
-        writer = csv.writer(f)
-        writer.writerow(['metric', 'value'])
+    # Make sure test_results is a list with at least one dict
+    if not test_results or not isinstance(test_results, list) or len(test_results) == 0:
+        test_results = [{'test_answer_accuracy': 0.0}]
 
-        # Save common metrics
-        if test_results and len(test_results) > 0:
-            for key, value in test_results[0].items():
-                if isinstance(value, torch.Tensor):
-                    value = value.item()
-                writer.writerow([key, value])
+    # Extract test accuracy
+    test_accuracy = test_results[0]['test_answer_accuracy_epoch']
+    if isinstance(test_accuracy, torch.Tensor):
+        test_accuracy = test_accuracy.item()
 
-        # Add AUC if calculated
-        if auc is not None:
-            writer.writerow(['test_auc', auc])
+    print(f"Test accuracy: {test_accuracy:.4f}")
 
-    print(f"Test metrics saved to {test_results_file}")
-    print(f"Training and validation metrics saved to {metrics_file}")
+    # Create or update the summary results file
+    summary_exists = os.path.exists(summary_results_file)
+    run_results = {
+        'run_id': run_id,
+        'seed': seed,
+        'test_accuracy': test_accuracy,
+        'test_auc': auc if auc is not None else 'N/A'
+    }
 
-    # Save the final model
+    # Extract other test metrics
+    for key, value in test_results[0].items():
+        if isinstance(value, torch.Tensor):
+            value = value.item()
+        run_results[key] = value
+
+    # Write to summary file
+    mode = 'a' if summary_exists else 'w'
+    with open(summary_results_file, mode, newline='') as f:
+        writer = csv.DictWriter(f, fieldnames=run_results.keys())
+        if not summary_exists:
+            writer.writeheader()
+        writer.writerow(run_results)
+
+    print(f"Run {run_id} metrics saved to {summary_results_file}")
+    if metrics_file:
+        print(f"Training and validation metrics saved to {metrics_file}")
+
+    # Get the best checkpoint path from the checkpoint callback
+    best_model_path = checkpoint_callback.best_model_path
+
+    # Save the best model with a standardized name
     models_dir = Path(models_dir)
     models_dir.mkdir(parents=True, exist_ok=True)
-    final_checkpoint_path = models_dir / f"final_{model_name.lower()}_{encoder_type}.ckpt"
-    trainer.save_checkpoint(final_checkpoint_path)
-    print(f"Final model saved to {final_checkpoint_path}")
+
+    # Return the test metrics for this run
+    return {
+        'model': model_name,
+        'encoder': encoder_type,
+        'run_id': run_id,
+        'seed': seed,
+        'test_accuracy': test_accuracy,
+        'test_auc': auc,
+        'best_model_path': best_model_path
+    }
 
 
 def str2bool(v):
@@ -305,6 +413,15 @@ if __name__ == "__main__":
     parser.add_argument("--data_dir", type=str, default="../data/vqa",
                         help="Directory containing dataset files (default: '../data/vqa')")
 
+    parser.add_argument("--seed", type=int, default=42,
+                        help="Random seed for reproducibility (default: 42)")
+
+    parser.add_argument("--run_id", type=int, default=0,
+                        help="Run identifier for multiple runs (default: 0)")
+
+    parser.add_argument("--save_learning_curves", type=str2bool, nargs='?', const=True, default=False,
+                        help="Whether to save learning curves (default: False)")
+
     args = parser.parse_args()
 
     train(
@@ -314,5 +431,8 @@ if __name__ == "__main__":
         results_dir=args.results_dir,
         models_dir=args.models_dir,
         config_dir=args.config_dir,
-        data_dir=args.data_dir
+        data_dir=args.data_dir,
+        seed=args.seed,
+        run_id=args.run_id,
+        save_learning_curves=args.save_learning_curves
     )

@@ -11,7 +11,6 @@
   "dropout_rate": 0.3,
   "weight_decay": 0.05,
   "eps": 1e-8,
-  "warmup_steps": 2000,
   "sequence_size": 14,
-  "unfreeze_layers": 4
+  "unfreeze_layers": 0
 }

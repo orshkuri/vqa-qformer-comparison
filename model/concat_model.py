@@ -235,7 +235,8 @@ class ConcatModel(nn.Module):
         return {
             'answer_accuracy': answer_accuracy,
             'loss_answer': loss_answer,
-            'answer_logits': answer_logits
+            'answer_predictions': predictions.detach(),  # For debugging
+            'answer_labels': answer_labels.detach(),  # For debugging
         }
 
     def _unfreeze_clip_layers(self, num_layers=4):

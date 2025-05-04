@@ -33,6 +33,8 @@ class QFormer(nn.Module):
                  unfreeze_layers=4):
         super(QFormer, self).__init__()
 
+        print(f'unfreeze_layers: {unfreeze_layers}')
+
         self.vision_dim = 1024  # Default for ViT
 
         self.device = device
@@ -381,7 +383,7 @@ class QFormer(nn.Module):
         cls_text_embedding = F.normalize(self.text_projection(cls_text_embedding),
                                          dim=-1)  # Normalize the text embedding  (b, d))
 
-        attention_mask = self.generate_attention_mask(task='itm',
+        attention_mask = self.generate_attention_mask(task='itc',
                                                       query_len=queries.shape[1],
                                                       pad_mask=question_tokens["attention_mask"],
                                                       device=self.device)  # (b, num_queries + text_len, num_queries + text_len)
@@ -631,6 +633,8 @@ class QFormer(nn.Module):
             'loss_itm': loss_itm,
             'loss_igt': loss_igt,
             'total_loss': loss_itc + loss_itm + loss_igt + loss_answer,
+            'answer_predictions': p.detach(),  # For debugging
+            'answer_labels': answers_labels.detach(),  # For debugging
             # 'total_loss': loss_itc + loss_igt + loss_answer,
             # 'queries_itm': queries_itm,
         }
