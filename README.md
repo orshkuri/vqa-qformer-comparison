@@ -91,10 +91,14 @@ python scripts/make_plots.py --results_dir ../results --output_dir ../plots
 
 
 ## Results and Visualizations
+
 <p align="center">
-  <img src="images/test_accuracy_comparison.png" alt="VQA Example" width="500"/>
+  <img src="images/test_accuracy_comparison.png" alt="Test Accuracy Comparison" width="500"/>
 </p>
 
+**Figure:** Test accuracy across model and encoder configurations.
+
+Additional plots are available in the [`images/`](images/) directory.
 
 ### QFormer
 Multi-objective model using:
