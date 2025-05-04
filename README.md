@@ -2,6 +2,8 @@
 
 This repository presents a comparative study of three deep learning architectures for Visual Question Answering (VQA) on a binary yes/no classification dataset.
 A detailed step-by-step guide to our Q-Former implementation is available in [this Medium article](https://medium.com/@ofekirsh/build-blip-2-step-by-step-59dc5a041827).
+For more context, refer to the original [BLIP-2 paper](https://lnkd.in/dbFZtHqk) which inspired this work.
+
 
 <p align="center">
   <img src="images/blip2_architecture.jpeg" alt="VQA Example" width="500"/>
@@ -89,12 +91,10 @@ python scripts/make_plots.py --results_dir ../results --output_dir ../plots
 
 
 ## Results and Visualizations
+<p align="center">
+  <img src="images/test_accuracy_comparison.png" alt="VQA Example" width="500"/>
+</p>
 
-- **Accuracy Comparison**: Plots for training and validation accuracy.
-- **Test Accuracy**: Horizontal bar chart for model performance.
-- **QFormer Loss Components**: Breakdown of ITC, ITM, IGT, and Answer loss.
-
-## Model Details
 
 ### QFormer
 Multi-objective model using:
@@ -109,13 +109,5 @@ Focuses on cross-attention mechanisms between image and question embeddings.
 ### Concat Model
 Simple concatenation of features followed by classification layers.
 
-## Acknowledgements
-
-- [CLIP](https://github.com/openai/CLIP)
-- [BERT](https://huggingface.co/bert-base-uncased)
-- [PyTorch Lightning](https://www.pytorchlightning.ai/)
-- [Transformers](https://huggingface.co/transformers/)
-
 ## License
-
 Distributed under the MIT License. See `LICENSE` for more information.
