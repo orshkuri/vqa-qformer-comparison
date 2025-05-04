@@ -1,11 +1,9 @@
-import torch
-import torch.nn as nn
 import pytorch_lightning as pl
 from torch.optim import AdamW
-from model.cross_attention_model import CrossAttentionModel
+from src.model.concat_model import ConcatModel
 
 
-class CrossAttentionLightning(pl.LightningModule):
+class ConcatLightning(pl.LightningModule):
     def __init__(self,
                  hyperparams,
                  device):
@@ -15,12 +13,10 @@ class CrossAttentionLightning(pl.LightningModule):
         # Store hyperparameters
         self.hyperparams = hyperparams
 
-        # Initialize CrossAttention model
-        self.network = CrossAttentionModel(
+        # Initialize Concat model
+        self.network = ConcatModel(
             sequence_size=self.hyperparams['sequence_size'],
             hidden_size=self.hyperparams['hidden_size'],
-            blocks_num=self.hyperparams['blocks_num'],
-            num_heads=self.hyperparams['num_heads'],
             dropout_rate=self.hyperparams['dropout_rate'],
             use_clip_for_text=self.hyperparams['use_clip_for_text'],
             unfreeze_layers=self.hyperparams['unfreeze_layers'],

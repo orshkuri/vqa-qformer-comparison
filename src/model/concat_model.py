@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from transformers import CLIPProcessor, CLIPModel
 from transformers import BertTokenizer, BertModel
 from torchmetrics import Accuracy
-from model.clip_vit import VisionEncoder
+from src.model.clip_vit import VisionEncoder
 
 
 class ConcatModel(nn.Module):

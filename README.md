@@ -1,8 +1,13 @@
 # VQA Model Comparison: QFormer, Cross Attention & Concat
 
 This repository presents a comparative study of three deep learning architectures for Visual Question Answering (VQA) on a binary yes/no classification dataset.
+A detailed step-by-step guide to our Q-Former implementation is available in [this Medium article](https://medium.com/@ofekirsh/build-blip-2-step-by-step-59dc5a041827).
 
-## 📌 Project Overview
+<p align="center">
+  <img src="images/blip2_architecture.jpeg" alt="VQA Example" width="500"/>
+</p>
+
+## Project Overview
 
 The goal is to benchmark the following models:
 - **QFormer**: A multi-task transformer with cross-modal attention and diverse objectives.
@@ -13,7 +18,7 @@ Each model supports two encoder types:
 - **CLIP**: For both image and text.
 - **BERT + ViT**: BERT for text and ViT-CLIP for image encoding.
 
-## 📂 Dataset
+## Dataset
 
 The dataset used for this project was sourced from the following repository:
 [Visual_Question_Answering by dinhquy-nguyen-1704](https://github.com/dinhquy-nguyen-1704/Visual_Question_Answering)
@@ -23,45 +28,17 @@ The dataset used for this project was sourced from the following repository:
 - **Validation**: 1,952 samples  
 - **Test**: 2,022 samples
 
-## 🧾 Directory Structure
-
-```
-QFormer/
-├── configs/               # JSON configuration files per model
-├── data/vqa/              # Dataset and resized image files
-├── logs/                  # Training logs per model/encoder
-├── model/                 # Core model architectures
-├── my_datasets/           # Data loading utilities
-├── my_lightning_model/    # PyTorch Lightning wrappers
-├── plots/                 # Generated result plots
-├── results/               # Metrics and test outputs
-├── saved_models/          # Saved checkpoints
-├── scripts/               # Utility scripts for running and plotting
-├── tests/                 # Unit tests
-├── trainers/              # Main training logic
-└── requirements.txt       # Dependencies
-```
-
-## ⚙️ Installation
+## Installation
 
 ```bash
-git clone https://github.com/yourusername/vqa-model-comparison.git
+git clone https://github.com/orshkuri/vqa-model-comparison.git
 cd vqa-model-comparison
 python -m venv venv
 source venv/bin/activate  # On Windows use: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-## 🚀 Usage
-
-### Train a Single Model
-
-```bash
-python trainers/trainer.py \
-    --model_name qformer \
-    --use_clip_for_text True \
-    --gpu_device 0
-```
+## Usage
 
 ### Run All Experiments
 
@@ -69,19 +46,55 @@ python trainers/trainer.py \
 python scripts/run.py --gpus 0,1 --models all --encoders all
 ```
 
+You can customize the script using the following command-line arguments:
+
+| Argument | Description | Default |
+|----------|-------------|---------|
+| `--results_dir` | Directory to save results | `../results` |
+| `--models_dir` | Directory to save trained models | `../saved_models` |
+| `--config_dir` | Directory containing model config files | `../configs` |
+| `--data_dir` | Directory containing dataset files | `../data/vqa` |
+| `--gpus` | Comma-separated list of GPU IDs to use | `0` |
+| `--models` | Which models to run (`all`, `qformer`, `cross_attention`, `concat`) | `all` |
+| `--encoders` | Which text encoders to use (`all`, `clip`, `bert`) | `all` |
+| `--num_runs` | Number of runs per experiment | `5` |
+| `--base_seed` | Base seed for random number generation | `42` |
+| `--save_learning_curves` | Save learning curves for the first run (`true` or `false`) | `True` |
+| `--generate_plots` | Generate plots after experiments (`true` or `false`) | `True` |
+
+#### Example with Custom Parameters
+
+```bash
+python scripts/run.py --gpus 1 --models cross_attention --encoders clip --num_runs 3 --base_seed 123 --save_learning_curves True --generate_plots True
+```
+---
+
 ### Generate Comparison Plots
 
 ```bash
 python scripts/make_plots.py --results_dir results --output_dir plots
 ```
+You can customize the script using the following command-line arguments:
 
-## 📈 Results and Visualizations
+| Argument | Description | Default |
+|----------|-------------|---------|
+| `--results_dir` | Directory containing results files | `../results` |
+| `--output_dir` | Directory to save generated plots | `../plots` |
+
+#### Example with Custom Parameters
+
+```bash
+python scripts/make_plots.py --results_dir ../results --output_dir ../plots
+```
+
+
+## Results and Visualizations
 
 - **Accuracy Comparison**: Plots for training and validation accuracy.
 - **Test Accuracy**: Horizontal bar chart for model performance.
 - **QFormer Loss Components**: Breakdown of ITC, ITM, IGT, and Answer loss.
 
-## 🧠 Model Details
+## Model Details
 
 ### QFormer
 Multi-objective model using:
@@ -96,13 +109,13 @@ Focuses on cross-attention mechanisms between image and question embeddings.
 ### Concat Model
 Simple concatenation of features followed by classification layers.
 
-## 📚 Acknowledgements
+## Acknowledgements
 
 - [CLIP](https://github.com/openai/CLIP)
 - [BERT](https://huggingface.co/bert-base-uncased)
 - [PyTorch Lightning](https://www.pytorchlightning.ai/)
 - [Transformers](https://huggingface.co/transformers/)
 
-## 📝 License
+## License
 
 Distributed under the MIT License. See `LICENSE` for more information.

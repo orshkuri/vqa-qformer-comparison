@@ -4,9 +4,8 @@ import torch.nn.functional as F
 from transformers import CLIPProcessor, CLIPModel
 from transformers import BertTokenizer, BertModel
 from torchmetrics import Accuracy
-from model.blocks import MultiHeadCrossAttention
-from model.clip_vit import VisionEncoder
-import random
+from src.model.blocks import MultiHeadCrossAttention
+from src.model.clip_vit import VisionEncoder
 
 
 class CrossAttentionModel(nn.Module):

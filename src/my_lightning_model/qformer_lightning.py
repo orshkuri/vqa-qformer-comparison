@@ -1,8 +1,6 @@
-import torch
-import torch.nn as nn
 import pytorch_lightning as pl
 from torch.optim import AdamW
-from model.qformer_model import QFormer
+from src.model.qformer_model import QFormer
 
 
 class QFormerLightning(pl.LightningModule):

@@ -1,4 +1,4 @@
-from model.functionals import multi_head_attention
+from src.model.functionals import multi_head_attention
 import torch
 import torch.nn as nn
 import torch.nn.functional as F

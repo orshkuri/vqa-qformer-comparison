@@ -2,12 +2,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from transformers import BertTokenizer, BertModel
-from transformers import CLIPProcessor, CLIPModel, CLIPTokenizer
-from model.blocks import CrossModalTransformer
-from torchmetrics import Accuracy, AUROC
-from model.clip_vit import VisionEncoder
-import os
-import random
+from transformers import CLIPProcessor, CLIPModel
+from src.model.blocks import CrossModalTransformer
+from torchmetrics import Accuracy
+from src.model.clip_vit import VisionEncoder
 
 
 # os.environ['CUDA_LAUNCH_BLOCKING'] = '1'

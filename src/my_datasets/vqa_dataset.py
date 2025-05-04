@@ -1,10 +1,10 @@
 import os
-from typing import Dict, List, Tuple, Optional, Union, Callable
+from typing import Dict, List, Tuple, Optional, Callable
 
 import torch
 from torch.utils.data import Dataset, DataLoader
 
-from model.clip_vit import VisionEncoder
+from src.model.clip_vit import VisionEncoder
 
 
 class VQADataset(Dataset):

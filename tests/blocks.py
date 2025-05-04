@@ -1,4 +1,4 @@
-from model.blocks import MultiHeadCrossAttention
+from src.model.blocks import MultiHeadCrossAttention
 import pytest
 import torch
 
